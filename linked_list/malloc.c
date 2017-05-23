@@ -72,6 +72,14 @@ void *malloc(size_t size)
 
 void *calloc(size_t nitems, size_t size)
 {
+	void *memory = malloc(nitems * size);
+
+	if(memory != NULL)
+	{
+		memset(memory, 0, nitems * size);
+	}
+
+	return *memory;
 }
 
 void *realloc(void *ptr, size_t size)
