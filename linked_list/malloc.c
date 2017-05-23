@@ -1,6 +1,10 @@
 ///Linked-list version
-#include <stddef.h>
+
 #include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <stddef.h>
 
 typedef struct list_t list_t;
 
@@ -44,7 +48,7 @@ void *malloc(size_t size)
 {
 	list_t* block;
 	if (size <= 0)
-		return;
+		return NULL;
 	if (!global_head) {
 		block = request_space(NULL, size);
 		if (!block) {
