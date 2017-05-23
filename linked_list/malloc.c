@@ -27,15 +27,15 @@ list_t *request_space(list_t* last, size_t size)
 	block->size = size;
 	block->next = NULL;
 	block->free = 0;
-	return block;	
+	return block;
 }
 
-list_t *find_free_block(list_t** last, size_t size) 
+list_t *find_free_block(list_t** last, size_t size)
 {
 	list_t* current = global_head;
 	while (current && !(current->free && current->size >= size)) {
 		*last = current;
-		current = current->next;	
+		current = current->next;
 	}
 	return current;
 }
@@ -44,7 +44,7 @@ void *malloc(size_t size)
 {
 	list_t* block;
 	if (size <= 0)
-		return;
+		return NULL;
 	if (!global_head) {
 		block = request_space(NULL, size);
 		if (!block) {
