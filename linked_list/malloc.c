@@ -54,6 +54,7 @@ void *malloc(size_t size)
 		if (!block) {
 			return NULL;
 		}
+		global_head = block;
 	} else {
 		list_t* last = global_head;
 		block = find_free_block(&last, size);
