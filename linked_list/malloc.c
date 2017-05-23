@@ -84,6 +84,14 @@ void *calloc(size_t nitems, size_t size)
 
 void *realloc(void *ptr, size_t size)
 {
+	void *new_memory = malloc(size);
+
+	if(new_memory != NULL)
+	{
+		memmove(new_memory, ptr, size_t __len, size);
+		free(ptr);
+	}
+	return new_memory;
 }
 
 void free(void *ptr)
