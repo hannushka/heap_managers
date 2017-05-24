@@ -107,7 +107,7 @@ list_t* allocate_memory(size_t index, size_t size)
     return NULL;
   }
 
-  return avail;
+  return recursive_alloc(index, size);
 }
 
 void *malloc(size_t size)
@@ -127,9 +127,7 @@ void *malloc(size_t size)
   }
 
   size_t r_size = rounded_size(size);
-
   size_t index = log(r_size)/log(2);
-
   list_t* block = allocate_memory(index, r_size);
 
 	return (void*) block;
