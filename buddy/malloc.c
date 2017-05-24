@@ -42,7 +42,7 @@ void init_blocks()
 	block->pred = NULL;
 	block->succ = NULL;
 
-  free_list[N] = block;
+  free_list[N-1] = block;
 }
 
 size_t rounded_size(size_t size)
@@ -61,13 +61,13 @@ list_t* recursive_alloc(size_t index, size_t start, size_t size)
   //Remove from the freelist
   free_list[index] = free_list[index]->succ;
 
-  if (index > N)
+  if (index > N-1)
   {
     return NULL;
   }
 
   //If the block has the same size as the expected size
-  if (index == start_index) {
+  if (index == start) {
     avail->free = 0;
     if (avail->succ != NULL) {
       avail->succ->pred = NULL;
@@ -100,7 +100,7 @@ list_t* recursive_alloc(size_t index, size_t start, size_t size)
 	//Add the element with half the size to the list
 	free_list[index-1] = first_half;
 
-  recursive_alloc(index-1, size_t start, new_size);
+  return recursive_alloc(index-1, start, new_size);
 }
 
 list_t* allocate_memory(size_t index, size_t size)
@@ -137,7 +137,7 @@ void *malloc(size_t size)
 
   size_t r_size = rounded_size(size);
   size_t index = log(r_size)/log(2);
-  list_t* block = allocate_memory(index, r_size);
+  list_t* block = allocate_memory(index - 1, r_size);
 
 	return (void*) block;
 }
