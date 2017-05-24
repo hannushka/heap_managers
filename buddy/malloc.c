@@ -10,8 +10,7 @@
 #define N 11 //Memory size
 #define MIN_SIZE 1; //1K is minimum block size
 #define LIST_T_SIZE sizeof(list_t)
-
-long MAX_SIZE = 1L << N;
+#define MAX_SIZE (1L << N)
 
 //Data structures
 typedef struct list_t list_t;
@@ -102,7 +101,7 @@ list_t* allocate_memory(size_t index, size_t size)
   if (!avail) {
     avail = recursive_alloc(index, size);
   }
-	
+
   return avail;
 }
 
