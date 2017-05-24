@@ -7,7 +7,7 @@
 #include <stddef.h>
 #include <math.h>
 
-#define N 11 //Memory size
+#define N 10 //Memory size (index)
 #define MIN_SIZE 1; //1K is minimum block size
 #define LIST_T_SIZE sizeof(list_t)
 #define MAX_SIZE (1L << N)
@@ -27,6 +27,8 @@ struct list_t
 list_t* free_list[N];
 unsigned int init = 1;
 
+//fprintf(stderr, "%s %p\n", "Pointer", &block);
+
 /*Keep a linked list (n) for each possible memory size 2^n == memory size.
 All empty except for the largest memory size which has a block*/
 void init_blocks()
@@ -36,10 +38,12 @@ void init_blocks()
 	if (req == (void*) -1) {
 		return;
 	}
-  block->size = MAX_SIZE;
+  block->size = N;
   block->free = 1;
+	block->pred = NULL;
+	block->succ = NULL;
 
-  free_list[N-1] = block;
+  free_list[N] = block;
 }
 
 size_t rounded_size(size_t size)
@@ -126,7 +130,6 @@ void *malloc(size_t size)
   size_t index = log(r_size)/log(2);
 
   list_t* block = allocate_memory(index, r_size);
-	//fprintf(stderr, "%s %p\n", "Pointer", &block);
 
 	return (void*) block;
 }
