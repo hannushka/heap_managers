@@ -6,31 +6,84 @@
 #include <stdio.h>
 #include <stddef.h>
 
-#define N 1024 //Memory size
-#define BLOCK_SIZE (1L << 32)
+#define N 11 //Memory size
+#define MIN_SIZE 1; //1K is minimum block size
+#define LIST_T_SIZE sizeof(list_t)
+
+long MAX_SIZE = 1L << N;
 
 //Data structures
 typedef struct list_t list_t;
 
 struct list_t
 {
-  unsigned free:1; /* one if free. */
-  size_t   size; //size including list_t
+  unsigned free:1;     /* one if free. */
+  size_t   size;       /* size including list_t */
   list_t*  succ;       /* successor block in list. */
   list_t*  pred;       /* predecessor block in list. */
   char     data[];
 }
 
-void *global_head = NULL;
-
-void allocate_block()
-{
-
-}
+void* list[N];
+unsigned int init = 1;
 
 /*Keep a linked list (n) for each possible memory size 2^n == memory size.
 All empty except for the largest memory size which has a block*/
-void* list[N];
+void init_blocks()
+{
+  list_t* block = sbrk(0);
+	void* req = sbrk(size + LIST_T_SIZE);
+	if (req == (void*) -1) {
+		return NULL;
+	}
+  block->size = MAX_SIZE;
+  block->free = 1;
+
+  list[N-1] = (void*)block;
+}
+
+size_t round_up(size_t size)
+{
+  unsigned int rounded_size = 2;
+  while (rounded_size < MAX_SIZE && rounded_size > N) {
+    rounded_size *= 2;
+  }
+
+  return rounded_size;
+}
+
+list_t* check_available_block(void* head)
+{
+  void* tmp = head;
+  while (tmp != NULL && !tmp->free)
+    tmp = tmp->succ;
+  return tmp;
+}
+
+list_t* allocate_memory(size_t index, size_t size)
+{
+  void* block = list[index];
+  list_t* avail = check_available_block(block);
+  if (!avail) {
+    avail = recursive_alloc(index, index);
+  }
+  return avail;
+}
+
+//Recursive method
+void* recursive_alloc(size_t index, size_t start)
+{
+  if (index > N)
+    return NULL;
+  void* block = list[index];
+  list_t* avail = check_available_block(block);
+  if (avail) {
+    return avail;
+  }
+  return recursive_alloc(index++, index);
+}
+
+
 
 void *malloc(size_t size)
 {
@@ -40,9 +93,22 @@ void *malloc(size_t size)
 	to get the free list number.
 	Otherwise check upwards in sizes, splitting each in two
 	If no space return null*/
-  if (global_head == NULL) {
-    allocate_block(BLOCK_SIZE);
+  if (size <= 0 || size > MAX_SIZE)
+  {
+    return NULL;
   }
+
+  if (init) {
+    init_blocks();
+    init = 0;
+  }
+
+  size = rounded_size(size);
+
+  size_t index = log(size)/log(2);
+
+  list_t* block = allocate_memory(index, size);
+
 }
 
 void *calloc(size_t nitems, size_t size)

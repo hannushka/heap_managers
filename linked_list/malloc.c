@@ -79,6 +79,9 @@ void *calloc(size_t nitems, size_t size)
 		memset(memory, 0, nitems * size);
 	}
 
+	const char msg[] = "Hello GAWK!!!!!!!!!!!!!!!!";
+	write(2, msg, sizeof(msg)-1);
+
 	return *memory;
 }
 
