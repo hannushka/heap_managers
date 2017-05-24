@@ -27,8 +27,6 @@ struct list_t
 list_t* free_list[N];
 unsigned int init = 1;
 
-//fprintf(stderr, "%s %p\n", "Pointer", &block);
-
 /*Keep a linked list (n) for each possible memory size 2^n == memory size.
 All empty except for the largest memory size which has a block*/
 
@@ -57,46 +55,57 @@ size_t rounded_size(size_t size)
 }
 
 //Recursive method
-list_t* recursive_alloc(size_t index, size_t size)
+list_t* recursive_alloc(size_t index, size_t start, size_t size)
 {
-  if (index > N)
-    return NULL;
-
   list_t* avail = free_list[index];
-	while (avail == NULL && index < N) {
-		index++;
-	  avail = free_list[index];
-	}
+  //Remove from the freelist
+  free_list[index] = free_list[index]->succ;
 
-  if (avail) {
-		//Split into two blocks
-		unsigned int new_size = (avail->size)/2;
+  if (index > N)
+  {
+    return NULL;
+  }
 
-		list_t* first_half = avail;
-		list_t* second_half = avail + new_size;
+  //If the block has the same size as the expected size
+  if (index == start_index) {
+    avail->free = 0;
+    if (avail->succ != NULL) {
+      avail->succ->pred = NULL;
+      avail->succ = NULL;
+    }
 
-		first_half->free = 0;
-		first_half->size = new_size;
-		first_half->pred = NULL;
-		first_half->succ = second_half;
+    return avail;
+  }
 
-		second_half->free = 0;
-		second_half->size = new_size;
-		second_half->pred = first_half;
-		second_half->succ = NULL;
+  if (avail->succ != NULL) {
+    avail->succ->pred = NULL;
+  }
 
-		//Add one to the list
-		free_list[index] = avail->succ;
+	//Split into two blocks
+	unsigned int new_size = (avail->size)/2;
 
-		//Return the other
-    return second_half;
-  } else {
-    return recursive_alloc(index++, size);
-	}
+	list_t* first_half = avail;
+	list_t* second_half = avail + new_size;
+
+	first_half->free = 1;
+	first_half->size = new_size;
+	first_half->pred = NULL;
+	first_half->succ = second_half;
+
+	second_half->free = 1;
+	second_half->size = new_size;
+	second_half->pred = first_half;
+	second_half->succ = NULL;
+
+	//Add the element with half the size to the list
+	free_list[index-1] = first_half;
+
+  recursive_alloc(index-1, size_t start, new_size);
 }
 
 list_t* allocate_memory(size_t index, size_t size)
 {
+  size_t start_index = index;
   list_t* avail = free_list[index];
 	while (avail == NULL && index < N) {
 		index++;
@@ -107,7 +116,7 @@ list_t* allocate_memory(size_t index, size_t size)
     return NULL;
   }
 
-  return recursive_alloc(index, size);
+  return recursive_alloc(index, start_index, size);
 }
 
 void *malloc(size_t size)
