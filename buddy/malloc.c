@@ -31,6 +31,7 @@ unsigned int init = 1;
 
 /*Keep a linked list (n) for each possible memory size 2^n == memory size.
 All empty except for the largest memory size which has a block*/
+
 void init_blocks()
 {
   list_t* block = sbrk(0);
@@ -136,12 +137,22 @@ void *malloc(size_t size)
 
 void *calloc(size_t nitems, size_t size)
 {
+	void *memory = malloc(nitems * size);
 
+	if(memory != NULL)
+		memset(memory, 0, nitems * size);
+	return memory;
 }
 
 void *realloc(void *ptr, size_t size)
 {
+	void *new_memory = malloc(size);
 
+	if (new_memory != NULL) {
+		memmove(new_memory, ptr, size);
+		free(ptr);
+	}
+	return new_memory;
 }
 
 void free(void *ptr)
