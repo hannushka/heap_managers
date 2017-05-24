@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stddef.h>
+#include <math.h>
 
 #define N 11 //Memory size
 #define MIN_SIZE 1; //1K is minimum block size
@@ -22,9 +23,9 @@ struct list_t
   list_t*  succ;       /* successor block in list. */
   list_t*  pred;       /* predecessor block in list. */
   char     data[];
-}
+};
 
-void* list[N];
+list_t* free_list[N];
 unsigned int init = 1;
 
 /*Keep a linked list (n) for each possible memory size 2^n == memory size.
@@ -32,69 +33,78 @@ All empty except for the largest memory size which has a block*/
 void init_blocks()
 {
   list_t* block = sbrk(0);
-	void* req = sbrk(size + LIST_T_SIZE);
+	void* req = sbrk(MAX_SIZE);
 	if (req == (void*) -1) {
-		return NULL;
+		return;
 	}
   block->size = MAX_SIZE;
   block->free = 1;
 
-  list[N-1] = (void*)block;
+  free_list[N-1] = block;
 }
 
-size_t round_up(size_t size)
+size_t rounded_size(size_t size)
 {
-  unsigned int rounded_size = 2;
-  while (rounded_size < MAX_SIZE && rounded_size > N) {
+  size_t rounded_size = MIN_SIZE;
+  while (rounded_size < MAX_SIZE && rounded_size < size) {
     rounded_size *= 2;
   }
-
   return rounded_size;
 }
 
-list_t* check_available_block(void* head)
+//Recursive method
+list_t* recursive_alloc(size_t index, size_t size)
 {
-  void* tmp = head;
-  while (tmp != NULL && !tmp->free)
-    tmp = tmp->succ;
-  return tmp;
+  if (index > N)
+    return NULL;
+
+  list_t* avail = free_list[index];
+	while (avail == NULL && index < N) {
+		index++;
+	  avail = free_list[index];
+	}
+
+  if (avail) {
+		//Split into two blocks
+		unsigned int new_size = (avail->size)/2;
+
+		list_t* first_half = avail;
+		list_t* second_half = avail + new_size;
+
+		first_half->free = 0;
+		first_half->size = new_size;
+		first_half->pred = NULL;
+		first_half->succ = second_half;
+
+		second_half->free = 0;
+		second_half->size = new_size;
+		second_half->pred = first_half;
+		second_half->succ = NULL;
+
+		//Add one to the list
+		free_list[index] = avail->succ;
+
+		//Return the other
+    return second_half;
+  } else {
+    return recursive_alloc(index++, size);
+	}
 }
 
 list_t* allocate_memory(size_t index, size_t size)
 {
-  void* block = list[index];
-  list_t* avail = check_available_block(block);
+  list_t* avail = free_list[index];
+	while (avail == NULL && index < N) {
+		index++;
+	  avail = free_list[index];
+	}
+
   if (!avail) {
-    avail = recursive_alloc(index, index);
+    avail = recursive_alloc(index, size);
   }
+	
   return avail;
 }
-
-void split (size_t index)
-{
-  list[index]
-  //remove 16K block
-  //two new blocks 8K add to list
-}
-
-//Recursive method
-void* recursive_alloc(size_t index, size_t start)
-{
-  if (index > N)
-    return NULL;
-  void* block = list[index];
-  list_t* avail = check_available_block(block);
-  if (avail) {
-    //Free block
-    //Split into two blocks
-    //Add one to the list
-    //Return the other
-    return
-  } else
-    return recursive_alloc(index++, index);
-}
-
-
 
 void *malloc(size_t size)
 {
@@ -105,45 +115,31 @@ void *malloc(size_t size)
 	Otherwise check upwards in sizes, splitting each in two
 	If no space return null*/
   if (size <= 0 || size > MAX_SIZE)
-  {
     return NULL;
-  }
 
   if (init) {
     init_blocks();
     init = 0;
   }
 
-  size = rounded_size(size);
+  size_t r_size = rounded_size(size);
 
-  size_t index = log(size)/log(2);
+  size_t index = log(r_size)/log(2);
 
-  list_t* block = allocate_memory(index, size);
+  list_t* block = allocate_memory(index, r_size);
+	//fprintf(stderr, "%s %p\n", "Pointer", &block);
 
+	return (void*) block;
 }
 
 void *calloc(size_t nitems, size_t size)
 {
-  void *memory = malloc(nitems * size);
 
-	if(memory != NULL)
-	{
-		memset(memory, 0, nitems * size);
-	}
-
-	return *memory;
 }
 
 void *realloc(void *ptr, size_t size)
 {
-  void *new_memory = malloc(size);
 
-	if(new_memory != NULL)
-	{
-		memmove(new_memory, ptr, size_t __len, size);
-		free(ptr);
-	}
-	return new_memory;
 }
 
 void free(void *ptr)
