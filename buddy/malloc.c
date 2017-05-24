@@ -167,4 +167,12 @@ void free(void *ptr)
 	/*If buddy also free => merge the blocks and recurse until no free buddy
 	add the resulting block to list
 	Else add block to list*/
+
+  if (ptr == NULL) {
+        return;
+  }
+
+  list_t* block_ptr = (list_t*)ptr-1;
+	block_ptr->free = 1;
+
 }
