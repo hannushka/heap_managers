@@ -9,8 +9,7 @@
 #define N 11 //Memory size
 #define MIN_SIZE 1; //1K is minimum block size
 #define LIST_T_SIZE sizeof(list_t)
-
-long MAX_SIZE = 1L << N;
+#define MAX_SIZE (1L << N)
 
 //Data structures
 typedef struct list_t list_t;
@@ -70,9 +69,12 @@ list_t* allocate_memory(size_t index, size_t size)
   return avail;
 }
 
-void split (size_t index)
+void split (list_t* split_block)
 {
-  list[index]
+  split_block->free = 0;
+
+  list[]
+
   //remove 16K block
   //two new blocks 8K add to list
 }
