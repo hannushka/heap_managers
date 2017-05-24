@@ -70,6 +70,13 @@ list_t* allocate_memory(size_t index, size_t size)
   return avail;
 }
 
+void split (size_t index)
+{
+  list[index]
+  //remove 16K block
+  //two new blocks 8K add to list
+}
+
 //Recursive method
 void* recursive_alloc(size_t index, size_t start)
 {
@@ -78,9 +85,13 @@ void* recursive_alloc(size_t index, size_t start)
   void* block = list[index];
   list_t* avail = check_available_block(block);
   if (avail) {
-    return avail;
-  }
-  return recursive_alloc(index++, index);
+    //Free block
+    //Split into two blocks
+    //Add one to the list
+    //Return the other
+    return
+  } else
+    return recursive_alloc(index++, index);
 }
 
 
