@@ -7,17 +7,26 @@
 #include <stddef.h>
 
 #define N 1024 //Memory size
+#define BLOCK_SIZE (1L << 32)
 
 //Data structures
-
 typedef struct list_t list_t;
 
-struct list_t {
-	size_t  size; //size including list_t
-	list_t* next; //next available block.
-	int free;
-	char    data[]; //C99 flexible array.
-};
+struct list_t
+{
+  unsigned free:1; /* one if free. */
+  size_t   size; //size including list_t
+  list_t*  succ;       /* successor block in list. */
+  list_t*  pred;       /* predecessor block in list. */
+  char     data[];
+}
+
+void *global_head = NULL;
+
+void allocate_block()
+{
+
+}
 
 /*Keep a linked list (n) for each possible memory size 2^n == memory size.
 All empty except for the largest memory size which has a block*/
@@ -31,14 +40,33 @@ void *malloc(size_t size)
 	to get the free list number.
 	Otherwise check upwards in sizes, splitting each in two
 	If no space return null*/
+  if (global_head == NULL) {
+    allocate_block(BLOCK_SIZE);
+  }
 }
 
 void *calloc(size_t nitems, size_t size)
 {
+  void *memory = malloc(nitems * size);
+
+	if(memory != NULL)
+	{
+		memset(memory, 0, nitems * size);
+	}
+
+	return *memory;
 }
 
 void *realloc(void *ptr, size_t size)
 {
+  void *new_memory = malloc(size);
+
+	if(new_memory != NULL)
+	{
+		memmove(new_memory, ptr, size_t __len, size);
+		free(ptr);
+	}
+	return new_memory;
 }
 
 void free(void *ptr)
