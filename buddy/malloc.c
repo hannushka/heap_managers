@@ -87,7 +87,7 @@ list_t* recursive_alloc(size_t index, size_t start, size_t size)
 
 	list_t* avail = free_list[index];
 
-	//Remove from the freelist
+	//Remove from the free_list
   free_list[index] = free_list[index]->succ;
 
   //If the block has the same size as the expected size
@@ -162,9 +162,7 @@ void *malloc(size_t size)
 
   size_t r_size = rounded_size(size);
   size_t index = log(r_size)/log(2);
-  list_t* block = allocate_memory(index, r_size);
-
-	//print_list();
+  list_t* block = allocate_memory(index-1, r_size);
 
 	return block->data;
 }
@@ -189,19 +187,41 @@ void *realloc(void *ptr, size_t size)
 	return new_memory;
 }
 
-list_t* recurse_merge()
+list_t* recurse_merge(list_t* block_ptr)
 {
+	if (block_ptr->size == N)
+		return block_ptr;
+
+	size_t size = block_ptr->size;
+	size_t index = size-1;
 
   void* buddy = start + (((void*)block_ptr - start) ^ (1L << block_ptr->size));
 
   list_t* buddy_ptr = (list_t*) buddy;
+	list_t* merged_segment = block_ptr;
 
   if (buddy_ptr->free && (buddy_ptr->size == block_ptr->size)) {
-    fprintf(stderr, "%s %p %p \n", "Buddy free", (void*)ptr, (void*)buddy);
-  } else {
-    fprintf(stderr, "%s %p %p\n", "No free buddy", (void*)ptr, (void*)buddy);
-  }
+    fprintf(stderr, "%s %p %p\n", "Free buddy", (void*)block_ptr, (void*)buddy_ptr);
+		if (block_ptr < buddy_ptr)
+    	merged_segment = block_ptr;
+    else
+      merged_segment = buddy_ptr;
 
+		if (buddy_ptr == free_list[index]) {
+    	free_list[index] = buddy_ptr->succ;
+      if (free_list[index] != NULL) {
+      	free_list[index]->pred = NULL;
+			}
+    } else {
+    	buddy_ptr->pred->succ = buddy_ptr->succ;
+      if (buddy_ptr->succ != NULL) {
+        buddy_ptr->succ->pred = buddy_ptr->pred;
+      }
+    }
+		merged_segment->size = size + 1;
+		recurse_merge(merged_segment);
+  }
+	return merged_segment;
 }
 
 void free(void *ptr)
@@ -215,22 +235,40 @@ void free(void *ptr)
   }
 
 	list_t* block_ptr = (list_t*)((char*)ptr - LIST_T_SIZE);
+
+	block_ptr = recurse_merge(block_ptr);
+
 	block_ptr->free = 1;
 	size_t size = block_ptr->size;
-  size_t index = log(size)/log(2);
+	size_t index = size-1;
 
-  list_t* freed_block = recurse_merge();
-
-  if (free_list[index] == NULL)
-  {
-    free_list[index] = freed_block;
-    free_list[index]->pred = NULL;
+	if (free_list[index] == NULL) {
+		free_list[index] = block_ptr;
     free_list[index]->succ = NULL;
+    free_list[index]->pred = NULL;
+    return;
+	}
+	list_t* p = free_list[index];
+  list_t* prev = NULL;
+  while (p != NULL && p < block_ptr) {
+    prev = p;
+    p = p->succ;
+	}
+	if (prev == NULL) {
+    free_list[index] = block_ptr;
+    free_list[index]->succ = p;
+    free_list[index]->pred = NULL;
+    p->pred = block_ptr;
+    return;
   }
-  else
-  {
-    free_list[index]->pred = freed_block;
-    free_list[index] = freed_block;
+  if (p == NULL) {
+    prev->succ = block_ptr;
+    block_ptr->succ = NULL;
+		block_ptr->pred = prev;
+    return;
   }
-
+  block_ptr->succ = p;
+  block_ptr->pred = prev;
+  prev->succ = block_ptr;
+	p->pred = block_ptr;
 }
