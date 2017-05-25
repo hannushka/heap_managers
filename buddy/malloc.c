@@ -32,8 +32,15 @@ unsigned int init = 1;
 void print_list()
 {
 	for (int i = 0 ; i < N ; i++) {
-		if (free_list[i]) {
-			fprintf(stderr, "At index %d block with size %zu\n",i, free_list[i]->size);
+		list_t* tmp = free_list[i];
+		if (tmp) {
+			fprintf(stderr, "At index %d block with size %zu is free %d\n",i, tmp->size, tmp->free);
+			if (tmp->succ) {
+				fprintf(stderr, "Succ index %d block with size %zu is free %d\n",i, tmp->succ->size, tmp->succ->free);
+			}
+			if (tmp->pred) {
+				fprintf(stderr, "Pred index %d block with size %zu is free %d\n",i, tmp->pred->size, tmp->pred->free);
+			}
 		}
 	}
 }
@@ -90,7 +97,6 @@ list_t* recursive_alloc(size_t index, size_t start, size_t size)
       avail->succ->pred = NULL;
       avail->succ = NULL;
     }
-
     return avail;
   }
 
@@ -154,11 +160,11 @@ void *malloc(size_t size)
     init = 0;
   }
 
-	print_list();
-
   size_t r_size = rounded_size(size);
   size_t index = log(r_size)/log(2);
   list_t* block = allocate_memory(index, r_size);
+
+	//print_list();
 
 	return block->data;
 }
@@ -183,6 +189,11 @@ void *realloc(void *ptr, size_t size)
 	return new_memory;
 }
 
+list_t* recurse_merge()
+{
+
+}
+
 void free(void *ptr)
 {
 	/*If buddy also free => merge the blocks and recurse until no free buddy
@@ -192,16 +203,18 @@ void free(void *ptr)
   if (ptr == NULL) {
         return;
   }
-  list_t* block_ptr = (list_t*)ptr;
-	block_ptr->free = 1;
 
-	void* buddy = start + ((ptr - start) ^ (1 << block_ptr->size));
+	list_t* block_ptr = (list_t*)((char*)ptr - LIST_T_SIZE);
+	block_ptr->free = 0;
+	size_t size = block_ptr->size;
+
+	void* buddy = start + (((void*)block_ptr - start) ^ (1L << block_ptr->size));
 
 	list_t* buddy_ptr = (list_t*) buddy;
 
-	if (buddy_ptr->free) {
-		fprintf(stderr, "%s %p %p \n", "Buddy free", (void*)block_ptr, (void*)buddy_ptr);
+	if (buddy_ptr->free && (buddy_ptr->size == block_ptr->size)) {
+		fprintf(stderr, "%s %p %p \n", "Buddy free", (void*)ptr, (void*)buddy);
 	} else {
-			fprintf(stderr, "%s %p %p\n", "No free buddy", (void*)ptr, (void*)buddy);
+		fprintf(stderr, "%s %p %p\n", "No free buddy", (void*)ptr, (void*)buddy);
 	}
 }
