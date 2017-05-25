@@ -8,7 +8,7 @@
 #include <math.h>
 
 #define N 10 //Memory size (index)
-#define MIN_SIZE 1; //1K is minimum block size
+#define MIN_SIZE 1; //Minimum block size
 #define LIST_T_SIZE sizeof(list_t)
 #define MAX_SIZE (1L << N)
 
@@ -25,18 +25,33 @@ struct list_t
 };
 
 list_t* free_list[N];
+void* start = NULL;
 unsigned int init = 1;
+
+
+void print_list()
+{
+	for (int i = 0 ; i < N ; i++) {
+		if (free_list[i]) {
+			fprintf(stderr, "At index %d block with size %zu\n",i, free_list[i]->size);
+		}
+	}
+}
 
 /*Keep a linked list (n) for each possible memory size 2^n == memory size.
 All empty except for the largest memory size which has a block*/
 
 void init_blocks()
 {
-  list_t* block = sbrk(0);
 	void* req = sbrk(MAX_SIZE);
 	if (req == (void*) -1) {
 		return;
 	}
+
+	list_t* block = sbrk(0);
+
+	start = block;
+
   block->size = N;
   block->free = 1;
 	block->pred = NULL;
@@ -47,9 +62,10 @@ void init_blocks()
 
 size_t rounded_size(size_t size)
 {
+	size = size + LIST_T_SIZE;
   size_t rounded_size = MIN_SIZE;
   while (rounded_size < MAX_SIZE && rounded_size < size) {
-    rounded_size *= 2;
+    rounded_size <<= 2;
   }
   return rounded_size;
 }
@@ -57,14 +73,15 @@ size_t rounded_size(size_t size)
 //Recursive method
 list_t* recursive_alloc(size_t index, size_t start, size_t size)
 {
-  list_t* avail = free_list[index];
-  //Remove from the freelist
-  free_list[index] = free_list[index]->succ;
-
   if (index > N-1)
   {
     return NULL;
   }
+
+	list_t* avail = free_list[index];
+
+	//Remove from the freelist
+  free_list[index] = free_list[index]->succ;
 
   //If the block has the same size as the expected size
   if (index == start) {
@@ -79,13 +96,15 @@ list_t* recursive_alloc(size_t index, size_t start, size_t size)
 
   if (avail->succ != NULL) {
     avail->succ->pred = NULL;
-  }
+	}
+
+	//fprintf(stderr, "%s%zu %s %zu\n", "Splitting 2^", index, "for size", size);
 
 	//Split into two blocks
-	unsigned int new_size = (avail->size)/2;
+	unsigned int new_size = avail->size - 1;
 
 	list_t* first_half = avail;
-	list_t* second_half = avail + new_size;
+	list_t* second_half = (list_t*) ((char*) first_half + (1L << new_size));
 
 	first_half->free = 1;
 	first_half->size = new_size;
@@ -100,7 +119,7 @@ list_t* recursive_alloc(size_t index, size_t start, size_t size)
 	//Add the element with half the size to the list
 	free_list[index-1] = first_half;
 
-  return recursive_alloc(index-1, start, new_size);
+  return recursive_alloc(index-1, start, size);
 }
 
 list_t* allocate_memory(size_t index, size_t size)
@@ -135,11 +154,13 @@ void *malloc(size_t size)
     init = 0;
   }
 
+	print_list();
+
   size_t r_size = rounded_size(size);
   size_t index = log(r_size)/log(2);
-  list_t* block = allocate_memory(index - 1, r_size);
+  list_t* block = allocate_memory(index, r_size);
 
-	return (void*) block;
+	return block->data;
 }
 
 void *calloc(size_t nitems, size_t size)
@@ -171,8 +192,16 @@ void free(void *ptr)
   if (ptr == NULL) {
         return;
   }
-
-  list_t* block_ptr = (list_t*)ptr-1;
+  list_t* block_ptr = (list_t*)ptr;
 	block_ptr->free = 1;
 
+	void* buddy = start + ((ptr - start) ^ (1 << block_ptr->size));
+
+	list_t* buddy_ptr = (list_t*) buddy;
+
+	if (buddy_ptr->free) {
+		fprintf(stderr, "%s %p %p \n", "Buddy free", (void*)block_ptr, (void*)buddy_ptr);
+	} else {
+			fprintf(stderr, "%s %p %p\n", "No free buddy", (void*)ptr, (void*)buddy);
+	}
 }
