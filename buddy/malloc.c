@@ -192,6 +192,16 @@ void *realloc(void *ptr, size_t size)
 list_t* recurse_merge()
 {
 
+  void* buddy = start + (((void*)block_ptr - start) ^ (1L << block_ptr->size));
+
+  list_t* buddy_ptr = (list_t*) buddy;
+
+  if (buddy_ptr->free && (buddy_ptr->size == block_ptr->size)) {
+    fprintf(stderr, "%s %p %p \n", "Buddy free", (void*)ptr, (void*)buddy);
+  } else {
+    fprintf(stderr, "%s %p %p\n", "No free buddy", (void*)ptr, (void*)buddy);
+  }
+
 }
 
 void free(void *ptr)
@@ -205,16 +215,22 @@ void free(void *ptr)
   }
 
 	list_t* block_ptr = (list_t*)((char*)ptr - LIST_T_SIZE);
-	block_ptr->free = 0;
+	block_ptr->free = 1;
 	size_t size = block_ptr->size;
+  size_t index = log(size)/log(2);
 
-	void* buddy = start + (((void*)block_ptr - start) ^ (1L << block_ptr->size));
+  list_t* freed_block = recurse_merge();
 
-	list_t* buddy_ptr = (list_t*) buddy;
+  if (free_list[index] == NULL)
+  {
+    free_list[index] = freed_block;
+    free_list[index]->pred = NULL;
+    free_list[index]->succ = NULL;
+  }
+  else
+  {
+    free_list[index]->pred = freed_block;
+    free_list[index] = freed_block;
+  }
 
-	if (buddy_ptr->free && (buddy_ptr->size == block_ptr->size)) {
-		fprintf(stderr, "%s %p %p \n", "Buddy free", (void*)ptr, (void*)buddy);
-	} else {
-		fprintf(stderr, "%s %p %p\n", "No free buddy", (void*)ptr, (void*)buddy);
-	}
 }
