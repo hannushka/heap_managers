@@ -7,10 +7,11 @@
 #include <stddef.h>
 #include <math.h>
 
-#define N 10 //Memory size (index)
+#define MB (1024*1024ULL)
+#define N (21) //Memory size (index)
 #define MIN_SIZE 1; //Minimum block size
 #define LIST_T_SIZE sizeof(list_t)
-#define MAX_SIZE (1L << N)
+#define MAX_SIZE (1LL << N)
 
 //Data structures
 typedef struct list_t list_t;
@@ -29,21 +30,21 @@ void* start = NULL;
 unsigned int init = 1;
 
 
-void print_list()
-{
-	for (int i = 0 ; i < N ; i++) {
-		list_t* tmp = free_list[i];
-		if (tmp) {
-			fprintf(stderr, "At index %d block with size %zu is free %d\n",i, tmp->size, tmp->free);
-			if (tmp->succ) {
-				fprintf(stderr, "Succ index %d block with size %zu is free %d\n",i, tmp->succ->size, tmp->succ->free);
-			}
-			if (tmp->pred) {
-				fprintf(stderr, "Pred index %d block with size %zu is free %d\n",i, tmp->pred->size, tmp->pred->free);
-			}
-		}
-	}
-}
+// void print_list()
+// {
+// 	for (int i = 0 ; i < N ; i++) {
+// 		list_t* tmp = free_list[i];
+// 		if (tmp) {
+// 			fprintf(stderr, "At index %d block with size %zu is free %d\n",i, tmp->size, tmp->free);
+// 			if (tmp->succ) {
+// 				fprintf(stderr, "Succ index %d block with size %zu is free %d\n",i, tmp->succ->size, tmp->succ->free);
+// 			}
+// 			if (tmp->pred) {
+// 				fprintf(stderr, "Pred index %d block with size %zu is free %d\n",i, tmp->pred->size, tmp->pred->free);
+// 			}
+// 		}
+// 	}
+// }
 
 /*Keep a linked list (n) for each possible memory size 2^n == memory size.
 All empty except for the largest memory size which has a block*/
@@ -52,8 +53,11 @@ void init_blocks()
 {
 	void* req = sbrk(MAX_SIZE);
 	if (req == (void*) -1) {
+    write(2, "init fail\n", 10);
 		return;
 	}
+
+  write(2, "init\n", 5);
 
 	list_t* block = sbrk(0);
 
@@ -72,7 +76,7 @@ size_t rounded_size(size_t size)
 	size = size + LIST_T_SIZE;
   size_t rounded_size = MIN_SIZE;
   while (rounded_size < MAX_SIZE && rounded_size < size) {
-    rounded_size <<= 2;
+    rounded_size <<= 1;
   }
   return rounded_size;
 }
@@ -138,6 +142,8 @@ list_t* allocate_memory(size_t index, size_t size)
 	}
 
   if (!avail) {
+    char* mess = "MALLOC IS FAILING DUE TO A PROBLEM!\n";
+    write(2, mess, sizeof(mess));
     return NULL;
   }
 
@@ -201,7 +207,7 @@ list_t* recurse_merge(list_t* block_ptr)
 	list_t* merged_segment = block_ptr;
 
   if (buddy_ptr->free && (buddy_ptr->size == block_ptr->size)) {
-    fprintf(stderr, "%s %p %p\n", "Free buddy", (void*)block_ptr, (void*)buddy_ptr);
+    // fprintf(stderr, "%s %p %p\n", "Free buddy", (void*)block_ptr, (void*)buddy_ptr);
 		if (block_ptr < buddy_ptr)
     	merged_segment = block_ptr;
     else
