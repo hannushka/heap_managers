@@ -28,16 +28,14 @@ int main(){
 
 	free(o);
 
-	print_list();
-	fprintf(stderr, "END\n");
+	// print_list();
+	// fprintf(stderr, "END\n");
 
 	free(m);
 
-	print_list();
-	fprintf(stderr, "END\n");
 
 	free(n);
 
-	print_list();
-	fprintf(stderr, "END\n");
+	// print_list();
+	// fprintf(stderr, "END\n");
 }

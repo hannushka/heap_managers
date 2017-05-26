@@ -7,8 +7,7 @@
 #include <stddef.h>
 #include <math.h>
 
-#define MB (1024*1024ULL)
-#define N (21) //Memory size (index)
+#define N (32) //Memory size (index)
 #define MIN_SIZE 1; //Minimum block size
 #define LIST_T_SIZE sizeof(list_t)
 #define MAX_SIZE (1LL << N)
@@ -51,15 +50,11 @@ All empty except for the largest memory size which has a block*/
 
 void init_blocks()
 {
-	void* req = sbrk(MAX_SIZE);
-	if (req == (void*) -1) {
+	list_t* block = sbrk(MAX_SIZE);
+	if (block == (void*) -1) {
     write(2, "init fail\n", 10);
 		return;
 	}
-
-  write(2, "init\n", 5);
-
-	list_t* block = sbrk(0);
 
 	start = block;
 
