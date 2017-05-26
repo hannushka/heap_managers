@@ -31,18 +31,14 @@ unsigned int init = 1;
 
 void print_list()
 {
-	for (int i = 0 ; i < N ; i++)
-  {
+	for (int i = 0 ; i < N ; i++) {
 		list_t* tmp = free_list[i];
-		if (tmp)
-    {
+		if (tmp) {
 			fprintf(stderr, "At index %d block with size %zu is free %d\n",i, tmp->size, tmp->free);
-			if (tmp->succ)
-      {
+			if (tmp->succ) {
 				fprintf(stderr, "Succ index %d block with size %zu is free %d\n",i, tmp->succ->size, tmp->succ->free);
 			}
-			if (tmp->pred)
-      {
+			if (tmp->pred) {
 				fprintf(stderr, "Pred index %d block with size %zu is free %d\n",i, tmp->pred->size, tmp->pred->free);
 			}
 		}
@@ -55,8 +51,7 @@ All empty except for the largest memory size which has a block*/
 void init_blocks()
 {
 	void* req = sbrk(MAX_SIZE);
-	if (req == (void*) -1)
-  {
+	if (req == (void*) -1) {
 		return;
 	}
 
@@ -76,8 +71,7 @@ size_t rounded_size(size_t size)
 {
 	size = size + LIST_T_SIZE;
   size_t rounded_size = MIN_SIZE;
-  while (rounded_size < MAX_SIZE && rounded_size < size)
-  {
+  while (rounded_size < MAX_SIZE && rounded_size < size) {
     rounded_size <<= 2;
   }
   return rounded_size;
@@ -97,19 +91,16 @@ list_t* recursive_alloc(size_t index, size_t start, size_t size)
   free_list[index] = free_list[index]->succ;
 
   //If the block has the same size as the expected size
-  if (index == start)
-  {
+  if (index == start) {
     avail->free = 0;
-    if (avail->succ != NULL)
-    {
+    if (avail->succ != NULL) {
       avail->succ->pred = NULL;
       avail->succ = NULL;
     }
     return avail;
   }
 
-  if (avail->succ != NULL)
-  {
+  if (avail->succ != NULL) {
     avail->succ->pred = NULL;
 	}
 
@@ -141,14 +132,12 @@ list_t* allocate_memory(size_t index, size_t size)
 {
   size_t start_index = index;
   list_t* avail = free_list[index];
-	while (avail == NULL && index < N)
-  {
+	while (avail == NULL && index < N) {
 		index++;
 	  avail = free_list[index];
 	}
 
-  if (!avail)
-  {
+  if (!avail) {
     return NULL;
   }
 
@@ -166,8 +155,7 @@ void *malloc(size_t size)
   if (size <= 0 || size > MAX_SIZE)
     return NULL;
 
-  if (init)
-  {
+  if (init) {
     init_blocks();
     init = 0;
   }
@@ -192,8 +180,7 @@ void *realloc(void *ptr, size_t size)
 {
 	void *new_memory = malloc(size);
 
-	if (new_memory != NULL)
-  {
+	if (new_memory != NULL) {
 		memmove(new_memory, ptr, size);
 		free(ptr);
 	}
@@ -207,8 +194,9 @@ list_t* recurse_merge(list_t* block_ptr)
 
 	size_t size = block_ptr->size;
 	size_t index = size-1;
-	
-  void* buddy = start + (((void*)block_ptr - start) ^ (1L << index);
+
+  void* buddy = start + (((void*)block_ptr - start) ^ (1L << block_ptr->size));
+
   list_t* buddy_ptr = (list_t*) buddy;
 	list_t* merged_segment = block_ptr;
 
@@ -242,8 +230,7 @@ void free(void *ptr)
 	add the resulting block to list
 	Else add block to list*/
 
-  if (ptr == NULL)
-  {
+  if (ptr == NULL) {
         return;
   }
 
