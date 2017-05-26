@@ -1,5 +1,14 @@
 //Buddy system version
 
+/*Notes:
+  index value becomes very high for unknown reason.
+  add setvbuf() in gawk main method
+  to be able to ude printf in malloc
+
+  index seems to be ok in the beginning but later blows up
+  possibly because it shares memory with another object
+*/
+
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
@@ -7,7 +16,7 @@
 #include <stddef.h>
 #include <math.h>
 
-#define N (32) //Memory size (index)
+#define N (21) //Memory size (index)
 #define MIN_SIZE 1; //Minimum block size
 #define LIST_T_SIZE sizeof(list_t)
 #define MAX_SIZE (1LL << N)
@@ -18,7 +27,7 @@ typedef struct list_t list_t;
 struct list_t
 {
   unsigned free:1;     /* one if free. */
-  size_t   size;       /* size including list_t */
+  size_t   size;       /* size including list_t */ //Use char or size_t?
   list_t*  succ;       /* successor block in list. */
   list_t*  pred;       /* predecessor block in list. */
   char     data[];
