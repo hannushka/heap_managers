@@ -7,6 +7,13 @@
 
   index seems to be ok in the beginning but later blows up
   possibly because it shares memory with another object
+
+-------------------------------------------------------------------------
+  The problem could be the blocks_list should be a block_list instead of
+  all the blocks that currently exists (instead of just the free ones).
+
+  In the test the full memory is never freed and thus the system experiences a
+  memory leak.
 */
 
 #include <unistd.h>
@@ -33,33 +40,13 @@ struct list_t
   char     data[];
 };
 
-list_t* free_list[N];
+list_t* blocks_list[N];
 void* start = NULL;
 unsigned int init = 1;
 
-
-// void print_list()
-// {
-// 	for (int i = 0 ; i < N ; i++) {
-// 		list_t* tmp = free_list[i];
-// 		if (tmp) {
-// 			fprintf(stderr, "At index %d block with size %zu is free %d\n",i, tmp->size, tmp->free);
-// 			if (tmp->succ) {
-// 				fprintf(stderr, "Succ index %d block with size %zu is free %d\n",i, tmp->succ->size, tmp->succ->free);
-// 			}
-// 			if (tmp->pred) {
-// 				fprintf(stderr, "Pred index %d block with size %zu is free %d\n",i, tmp->pred->size, tmp->pred->free);
-// 			}
-// 		}
-// 	}
-// }
-
-/*Keep a linked list (n) for each possible memory size 2^n == memory size.
-All empty except for the largest memory size which has a block*/
-
 void init_blocks()
 {
-	list_t* block = sbrk(MAX_SIZE);
+	list_t* block = sbrk(MAX_SIZE * 2);
 	if (block == (void*) -1) {
     write(2, "init fail\n", 10);
 		return;
@@ -72,7 +59,7 @@ void init_blocks()
 	block->pred = NULL;
 	block->succ = NULL;
 
-  free_list[N-1] = block;
+  blocks_list[N-1] = block;
 }
 
 size_t rounded_size(size_t size)
@@ -86,22 +73,17 @@ size_t rounded_size(size_t size)
 }
 
 //Recursive method
-list_t* recursive_alloc(size_t index, size_t start, size_t size)
+list_t* recursive_alloc(size_t index, size_t start_index)
 {
-  if (index > N-1)
-  {
-    return NULL;
-  }
+	list_t* avail = blocks_list[index];
 
-	list_t* avail = free_list[index];
-
-	//Remove from the free_list
-  free_list[index] = free_list[index]->succ;
+	//Remove from the blocks_list
+  blocks_list[index] = blocks_list[index]->succ;
 
   //If the block has the same size as the expected size
-  if (index == start) {
+  if (index == start_index) {
     avail->free = 0;
-    if (avail->succ != NULL) {
+    if (avail->succ != NULL) { // TODO Maybe the fault lies here?
       avail->succ->pred = NULL;
       avail->succ = NULL;
     }
@@ -112,13 +94,11 @@ list_t* recursive_alloc(size_t index, size_t start, size_t size)
     avail->succ->pred = NULL;
 	}
 
-	//fprintf(stderr, "%s%zu %s %zu\n", "Splitting 2^", index, "for size", size);
-
 	//Split into two blocks
 	unsigned int new_size = avail->size - 1;
 
 	list_t* first_half = avail;
-	list_t* second_half = (list_t*) ((char*) first_half + (1L << new_size));
+	list_t* second_half = (list_t*) ((char*) first_half + (1LL << new_size));
 
 	first_half->free = 1;
 	first_half->size = new_size;
@@ -131,27 +111,29 @@ list_t* recursive_alloc(size_t index, size_t start, size_t size)
 	second_half->succ = NULL;
 
 	//Add the element with half the size to the list
-	free_list[index-1] = first_half;
+	blocks_list[index-1] = first_half;
 
-  return recursive_alloc(index-1, start, size);
+  return recursive_alloc(index-1, start_index);
 }
 
-list_t* allocate_memory(size_t index, size_t size)
+list_t* allocate_memory(size_t index)
 {
   size_t start_index = index;
-  list_t* avail = free_list[index];
-	while (avail == NULL && index < N) {
-		index++;
-	  avail = free_list[index];
+  list_t* block;
+
+	while (index < N) {
+    block = blocks_list[index];
+
+    while (block != NULL) {
+      if (block->free) {
+        return recursive_alloc(index, start_index);
+      }
+      block = block->succ;
+    }
+    index++;
 	}
 
-  if (!avail) {
-    char* mess = "MALLOC IS FAILING DUE TO A PROBLEM!\n";
-    write(2, mess, sizeof(mess));
-    return NULL;
-  }
-
-  return recursive_alloc(index, start_index, size);
+  return NULL;
 }
 
 void *malloc(size_t size)
@@ -170,9 +152,9 @@ void *malloc(size_t size)
     init = 0;
   }
 
-  size_t r_size = rounded_size(size);
+  size_t r_size = rounded_size(size + LIST_T_SIZE);
   size_t index = log(r_size)/log(2);
-  list_t* block = allocate_memory(index-1, r_size);
+  list_t* block = allocate_memory(index-1);
 
 	return block->data;
 }
@@ -205,7 +187,7 @@ list_t* recurse_merge(list_t* block_ptr)
 	size_t size = block_ptr->size;
 	size_t index = size-1;
 
-  void* buddy = start + (((void*)block_ptr - start) ^ (1L << block_ptr->size));
+  void* buddy = start + (((void*)block_ptr - start) ^ (1L << block_ptr->size)); // TODO Use this maybe?
 
   list_t* buddy_ptr = (list_t*) buddy;
 	list_t* merged_segment = block_ptr;
@@ -217,10 +199,10 @@ list_t* recurse_merge(list_t* block_ptr)
     else
       merged_segment = buddy_ptr;
 
-		if (buddy_ptr == free_list[index]) {
-    	free_list[index] = buddy_ptr->succ;
-      if (free_list[index] != NULL) {
-      	free_list[index]->pred = NULL;
+		if (buddy_ptr == blocks_list[index]) {
+    	blocks_list[index] = buddy_ptr->succ;
+      if (blocks_list[index] != NULL) {
+      	blocks_list[index]->pred = NULL;
 			}
     } else {
     	buddy_ptr->pred->succ = buddy_ptr->succ;
@@ -252,22 +234,22 @@ void free(void *ptr)
 	size_t size = block_ptr->size;
 	size_t index = size-1;
 
-	if (free_list[index] == NULL) {
-		free_list[index] = block_ptr;
-    free_list[index]->succ = NULL;
-    free_list[index]->pred = NULL;
+	if (blocks_list[index] == NULL) {
+		blocks_list[index] = block_ptr;
+    blocks_list[index]->succ = NULL;
+    blocks_list[index]->pred = NULL;
     return;
 	}
-	list_t* p = free_list[index];
+	list_t* p = blocks_list[index];
   list_t* prev = NULL;
   while (p != NULL && p < block_ptr) {
     prev = p;
     p = p->succ;
 	}
 	if (prev == NULL) {
-    free_list[index] = block_ptr;
-    free_list[index]->succ = p;
-    free_list[index]->pred = NULL;
+    blocks_list[index] = block_ptr;
+    blocks_list[index]->succ = p;
+    blocks_list[index]->pred = NULL;
     p->pred = block_ptr;
     return;
   }
@@ -281,4 +263,23 @@ void free(void *ptr)
   block_ptr->pred = prev;
   prev->succ = block_ptr;
 	p->pred = block_ptr;
+}
+
+void print_blocks_list() {
+  printf("--------- Memory --------\n");
+
+  for (size_t i = 0; i < N; i++) {
+    // printf("Order %d\n-------------\n", i);
+    list_t* current = blocks_list[i];
+    while (current != NULL) {
+      list_t* pred = current->pred;
+      if (pred != NULL) {
+        printf("Slot size: %zu, Available: %d, Pointer: %p\n", pred->size, pred->free, pred);
+      }
+      printf("Slot size: %zu, Available: %d, Pointer: %p\n", current->size, current->free, current);
+      current = current->succ;
+    }
+  }
+
+  printf("-------------------------\n");
 }
